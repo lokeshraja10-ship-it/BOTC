@@ -1,8 +1,93 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOTC Digital Town Square</title><link rel="stylesheet" href="styles.css"></head><body><div id="app">
-<header class="topbar"><div class="brand">BOTC Digital Town Square</div><div class="topActions"><span id="headerSession"></span><button id="themeBtn" class="ghost">◐</button></div></header><main class="shell">
-<section id="landing" class="card"><h1>Virtual Town Square & Grimoire</h1><p>Run a live, remote or in-room social-deduction session.</p><div class="grid2"><button id="playerMode" class="primary big">Join as Player</button><button id="gmMode" class="danger big">Storyteller</button></div></section>
-<section id="playerJoin" class="card hidden"><h2>Join session</h2><label>4-digit session<input id="joinCode" maxlength="4" inputmode="numeric"></label><label>Display name<input id="joinName" maxlength="30"></label><label>Your 4-digit return PIN<input id="joinPin" maxlength="4" inputmode="numeric"></label><button id="joinBtn" class="primary">Join Town Square</button> <button class="back ghost">Back</button><p id="joinMsg" class="status"></p></section>
-<section id="gmLogin" class="card hidden"><h2>Storyteller</h2><p>Sign in with the Google account that owns the session.</p><button id="googleBtn" class="primary">Sign in with Google</button> <button class="back ghost">Back</button><p id="gmMsg" class="status"></p></section>
-<section id="playerApp" class="hidden"><div class="gameLayout"><div id="playerStage" class="stage"></div><aside class="side"><nav class="sideTabs"><button data-tab="identity">You</button><button data-tab="town">Town</button><button data-tab="action">Action</button><button data-tab="notes">Notes</button><button data-tab="chat">Chat</button></nav><div id="playerBanner"></div><div id="playerPanel" class="panel"></div></aside></div></section>
-<section id="gmApp" class="hidden"><div class="gameLayout"><div id="gmStage" class="stage"></div><aside class="side"><div class="sideTabs"><button data-gmtab="setup">Setup</button><button data-gmtab="grimoire">Grimoire</button><button data-gmtab="night">Night</button><button data-gmtab="day">Day</button><button data-gmtab="messages">Info</button><button data-gmtab="chatcontrol">Chat</button><button data-gmtab="log">Log</button></div><div class="panel"><div id="gameCodeBadge"></div><div><button id="newGameBtn" class="primary">New session</button> <button id="signOutBtn" class="ghost">Sign out</button></div><div id="gmPanel"></div></div></aside></div></section>
-</main><div class="footerNote">Unofficial community companion. Not affiliated with The Pandemonium Institute.</div></div><script type="module" src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Town Square · Blood on the Clocktower companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Pro:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="setup">
+<div id="bg"></div>
+
+<!-- LANDING -->
+<section id="landing">
+  <div class="hero">
+    <div class="sigil">⏳</div>
+    <h1>Town Square</h1>
+    <p class="tag">A live Grimoire &amp; Town Square for Blood on the Clocktower</p>
+
+    <div id="resumeBox" class="resume" hidden></div>
+
+    <div class="choices">
+      <div class="choice">
+        <h2>Join a game</h2>
+        <label>Session code<input id="joinCode" inputmode="numeric" maxlength="4" placeholder="8565" autocomplete="off"></label>
+        <label>Assigned player name<input id="joinName" maxlength="30" placeholder="Lokesh" autocomplete="name"></label>
+        <label>Assigned 4-digit PIN<input id="joinPin" inputmode="numeric" maxlength="4" placeholder="4821" autocomplete="one-time-code"></label>
+        <button id="joinBtn" class="btn gold big">Enter the Town Square</button>
+      </div>
+      <div class="choice">
+        <h2>Storyteller</h2>
+        <p class="muted">Host a game and run the Grimoire.</p>
+        <button id="hostBtn" class="btn red big">Host as Storyteller</button>
+        <div id="hostPanel" hidden></div>
+      </div>
+    </div>
+    <p class="fine">Unofficial fan-made companion. Not affiliated with The Pandemonium Institute.</p>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="game" hidden>
+  <header id="topbar">
+    <div class="brand">⏳ <span>Town Square</span></div>
+    <div id="status" class="status"></div>
+    <div class="topbtns">
+      <button id="grimBtn" class="iconbtn" title="Show / hide Grimoire [G]" hidden>👁</button>
+      <button id="chatBtn" class="iconbtn" title="Messages">💬<span id="chatBadge" class="badge" hidden></span></button>
+      <button id="menuBtn" class="iconbtn" title="Menu">☰</button>
+    </div>
+  </header>
+
+  <div id="seatHint" class="hint" hidden>Your assigned seat is linked automatically</div>
+
+  <main id="stage">
+    <div id="board">
+      <div class="ring"></div>
+      <div id="clock"><span>✋</span></div>
+      <div id="seats"></div>
+      <div id="center"></div>
+    </div>
+  </main>
+
+  <div id="dock">
+    <button id="refBtn" class="dockbtn" title="Character reference">📜</button>
+    <button id="nightBtn" class="dockbtn" title="Night order" hidden>🌙</button>
+    <button id="meBtn" class="dockbtn" title="My character" hidden>🎭</button>
+    <button id="notesBtn" class="dockbtn" title="My notes" hidden>📝</button>
+  </div>
+
+  <nav id="menu" hidden></nav>
+
+  <aside id="chat" class="drawer">
+    <header><b>Messages</b><button id="chatClose" class="iconbtn sm">✕</button></header>
+    <div id="chatList"></div>
+    <form id="chatForm">
+      <select id="chatTo"></select>
+      <div class="row"><input id="chatText" maxlength="500" placeholder="Write a message…" autocomplete="off"><button class="btn gold">Send</button></div>
+      <p id="chatHint" class="muted small"></p>
+    </form>
+  </aside>
+
+  <div id="nightOverlay" hidden></div>
+</section>
+
+<div id="modal" hidden><div class="mbox"><button class="mclose" id="modalClose">✕</button><div id="mbody"></div></div></div>
+<div id="toasts"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
