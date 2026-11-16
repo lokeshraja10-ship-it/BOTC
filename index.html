@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOTC Digital Storyteller</title><link rel="stylesheet" href="styles.css"></head>
+<body><div id="app">
+<header><div><h1>BOTC Digital Storyteller</h1><p class="muted">A live social-deduction game for office groups</p></div><button id="themeBtn" class="ghost">◐ Theme</button></header>
+<main>
+<section id="landing" class="card hero"><h2>Enter the town</h2><div class="grid2"><button id="playerMode" class="primary big">Join as Player</button><button id="gmMode" class="danger big">Game Master</button></div></section>
+<section id="playerJoin" class="card hidden"><h2>Player Join</h2><label>Game code<input id="joinCode" maxlength="6" placeholder="ABC123"></label><label>Your name<input id="joinName" maxlength="30" placeholder="Vidula"></label><label>4-digit PIN<input id="joinPin" maxlength="4" inputmode="numeric" placeholder="1234"></label><button id="joinBtn" class="primary">Join game</button><button class="back ghost">Back</button><p id="joinMsg" class="status"></p></section>
+<section id="gmLogin" class="card hidden"><h2>Game Master</h2><p>Sign in with the Google account that will own the game.</p><button id="googleBtn" class="primary">Sign in with Google</button><button class="back ghost">Back</button><p id="gmMsg" class="status"></p></section>
+<section id="playerApp" class="hidden"><div id="playerBanner" class="banner"></div><nav class="tabs"><button data-tab="identity">Identity</button><button data-tab="town">Town Square</button><button data-tab="action">Action</button><button data-tab="notes">Notes</button></nav><div id="playerPanel" class="card"></div></section>
+<section id="gmApp" class="hidden"><div class="gmTop"><div><h2>Game Master Console</h2><div id="gameCodeBadge" class="code"></div></div><div><button id="newGameBtn" class="primary">New game</button><button id="signOutBtn" class="ghost">Sign out</button></div></div>
+<nav class="tabs gm"><button data-gmtab="setup">Setup</button><button data-gmtab="grimoire">Grimoire</button><button data-gmtab="night">Night</button><button data-gmtab="day">Day</button><button data-gmtab="messages">Messages</button><button data-gmtab="log">Log</button></nav><div id="gmPanel" class="card"></div></section>
+</main><footer>Created for private office play. Not affiliated with Blood on the Clocktower.</footer></div>
+<script type="module" src="app.js"></script></body></html>
