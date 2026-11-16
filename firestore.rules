@@ -1,25 +1,31 @@
 rules_version = '2';
-service cloud.firestore { match /databases/{database}/documents {
-  function signedIn(){ return request.auth != null; }
-  function game(id){ return get(/databases/$(database)/documents/games/$(id)); }
-  function owner(id){ return signedIn() && game(id).data.ownerUid == request.auth.uid; }
-  match /games/{gameId} {
-    allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-    allow read: if signedIn();
-    allow update, delete: if owner(gameId);
-    match /players/{playerId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && playerId == request.auth.uid;
-      allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
-      allow delete: if owner(gameId);
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function gameDoc(gameId) { return get(/databases/$(database)/documents/games/$(gameId)); }
+    function owner(gameId) { return signedIn() && gameDoc(gameId).data.ownerUid == request.auth.uid; }
+    match /games/{gameId} {
+      allow get: if signedIn();
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if owner(gameId);
+      match /players/{playerId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && playerId == request.auth.uid && request.resource.data.keys().hasOnly(['name','alive','joinedAt','lastSeen']) && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 30 && request.resource.data.alive == true;
+        allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
+        allow delete: if owner(gameId);
+      }
+      match /secrets/{playerId} {
+        allow read: if owner(gameId) || (signedIn() && playerId == request.auth.uid);
+        allow create: if signedIn() && playerId == request.auth.uid && request.resource.data.keys().hasOnly(['pin','roleId','shownRoleId','notes','vote','action','ghostVote','statusTokens']) && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$') && request.resource.data.roleId == null && request.resource.data.shownRoleId == null && request.resource.data.notes == '' && request.resource.data.vote == null && request.resource.data.action == null && request.resource.data.ghostVote == true && request.resource.data.statusTokens is list;
+        allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','vote','action']));
+        allow delete: if owner(gameId);
+      }
+      match /logs/{id} { allow read, create, update, delete: if owner(gameId); }
+      match /messages/{id} {
+        allow read: if owner(gameId) || (signedIn() && resource.data.toUid == request.auth.uid);
+        allow create, update, delete: if owner(gameId);
+      }
     }
-    match /secrets/{playerId} {
-      allow read: if owner(gameId) || (signedIn() && playerId == request.auth.uid);
-      allow create: if signedIn() && playerId == request.auth.uid;
-      allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','vote','action']));
-      allow delete: if owner(gameId);
-    }
-    match /logs/{id} { allow read, write: if owner(gameId); }
-    match /messages/{id} { allow read: if owner(gameId) || (signedIn() && resource.data.toUid == request.auth.uid); allow create: if owner(gameId); }
   }
-}}
+}
