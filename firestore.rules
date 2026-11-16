@@ -1,30 +1,93 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function gameDoc(gameId) { return get(/databases/$(database)/documents/games/$(gameId)); }
-    function owner(gameId) { return signedIn() && gameDoc(gameId).data.ownerUid == request.auth.uid; }
-    match /games/{gameId} {
-      allow get: if signedIn();
-      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if owner(gameId);
-      match /players/{playerId} {
-        allow read: if signedIn();
-        allow create: if signedIn() && playerId == request.auth.uid && request.resource.data.keys().hasOnly(['name','alive','joinedAt','lastSeen']) && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 30 && request.resource.data.alive == true;
-        allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
-        allow delete: if owner(gameId);
+
+    function authed() { return request.auth != null; }
+    function game(code) { return get(/databases/$(database)/documents/games/$(code)).data; }
+    function isOwner(code) { return authed() && game(code).ownerUid == request.auth.uid; }
+    function claimUid(code, seat) {
+      return get(/databases/$(database)/documents/games/$(code)/seatClaims/$(seat)).data.uid;
+    }
+    function validText() {
+      return request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 500;
+    }
+    function publicOk(code) {
+      let c = game(code).chat;
+      return request.resource.data.kind == 'public'
+        && (c.publicMode == 'all'
+            || (c.publicMode == 'selected' && request.resource.data.fromSeat in c.publicSeats));
+    }
+    function privateOk(code) {
+      let c = game(code).chat;
+      let a = request.resource.data.fromSeat;
+      let b = request.resource.data.toSeat;
+      return request.resource.data.kind == 'private'
+        && b is string
+        && ((a + '|' + b) in c.pairs || (b + '|' + a) in c.pairs)
+        && claimUid(code, b) == request.resource.data.toUid;
+    }
+
+    match /games/{code} {
+      // Anyone signed in who knows the 4-digit code can open the public game state.
+      allow get: if authed();
+      // Storytellers can list only their own sessions.
+      allow list: if authed() && resource.data.ownerUid == request.auth.uid;
+      allow create: if authed() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if authed() && resource.data.ownerUid == request.auth.uid;
+
+      // Storyteller-only Grimoire (real characters, reminders, bluffs).
+      match /gm/{docId} {
+        allow read, write: if isOwner(code);
       }
-      match /secrets/{playerId} {
-        allow read: if owner(gameId) || (signedIn() && playerId == request.auth.uid);
-        allow create: if signedIn() && playerId == request.auth.uid && request.resource.data.keys().hasOnly(['pin','roleId','shownRoleId','notes','vote','action','ghostVote','statusTokens']) && request.resource.data.pin is string && request.resource.data.pin.matches('^[0-9]{4}$') && request.resource.data.roleId == null && request.resource.data.shownRoleId == null && request.resource.data.notes == '' && request.resource.data.vote == null && request.resource.data.action == null && request.resource.data.ghostVote == true && request.resource.data.statusTokens is list;
-        allow update: if owner(gameId) || (signedIn() && playerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','vote','action']));
-        allow delete: if owner(gameId);
+
+      // One device per seat. A claim can only be created if the seat is free.
+      match /seatClaims/{seat} {
+        allow read: if authed();
+        allow create: if authed() && request.resource.data.uid == request.auth.uid;
+        allow update: if isOwner(code);
+        allow delete: if isOwner(code) || (authed() && resource.data.uid == request.auth.uid);
       }
-      match /logs/{id} { allow read, create, update, delete: if owner(gameId); }
-      match /messages/{id} {
-        allow read: if owner(gameId) || (signedIn() && resource.data.toUid == request.auth.uid);
-        allow create, update, delete: if owner(gameId);
+
+      // Each player's character and Storyteller information. Only that player + Storyteller.
+      match /private/{uid} {
+        allow read: if isOwner(code) || (authed() && request.auth.uid == uid);
+        allow write: if isOwner(code);
+      }
+
+      // Personal notes: only the player.
+      match /notes/{uid} {
+        allow read, write: if authed() && request.auth.uid == uid;
+      }
+
+      // Night choices: player writes own, Storyteller reads all.
+      match /actions/{uid} {
+        allow read: if isOwner(code) || (authed() && request.auth.uid == uid);
+        allow create, update: if authed() && request.auth.uid == uid;
+        allow delete: if isOwner(code);
+      }
+
+      // Votes are public (raised hands are visible to everyone).
+      match /votes/{uid} {
+        allow read: if authed();
+        allow create, update: if authed() && request.auth.uid == uid;
+        allow delete: if isOwner(code) || (authed() && request.auth.uid == uid);
+      }
+
+      // Chat: public messages for all; private only for sender, recipient and Storyteller.
+      match /chat/{msgId} {
+        allow read: if isOwner(code)
+          || (authed() && (resource.data.kind == 'public'
+                           || resource.data.fromUid == request.auth.uid
+                           || resource.data.toUid == request.auth.uid));
+        allow create: if (isOwner(code) && request.resource.data.fromUid == request.auth.uid && validText())
+          || (authed()
+              && request.resource.data.fromUid == request.auth.uid
+              && validText()
+              && claimUid(code, request.resource.data.fromSeat) == request.auth.uid
+              && (publicOk(code) || privateOk(code)));
+        allow update, delete: if isOwner(code);
       }
     }
   }

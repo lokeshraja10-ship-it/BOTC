@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Town Square · Blood on the Clocktower companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Pro:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="setup">
+<div id="bg"></div>
+
+<!-- LANDING -->
+<section id="landing">
+  <div class="hero">
+    <div class="sigil">⏳</div>
+    <h1>Town Square</h1>
+    <p class="tag">A live Grimoire &amp; Town Square for Blood on the Clocktower</p>
+
+    <div id="resumeBox" class="resume" hidden></div>
+
+    <div class="choices">
+      <div class="choice">
+        <h2>Join a game</h2>
+        <label>Session code<input id="joinCode" inputmode="numeric" maxlength="4" placeholder="8565" autocomplete="off"></label>
+        <button id="joinBtn" class="btn gold big">Enter the Town Square</button>
+      </div>
+      <div class="choice">
+        <h2>Storyteller</h2>
+        <p class="muted">Host a game and run the Grimoire.</p>
+        <button id="hostBtn" class="btn red big">Host as Storyteller</button>
+        <div id="hostPanel" hidden></div>
+      </div>
+    </div>
+    <p class="fine">Unofficial fan-made companion. Not affiliated with The Pandemonium Institute.</p>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="game" hidden>
+  <header id="topbar">
+    <div class="brand">⏳ <span>Town Square</span></div>
+    <div id="status" class="status"></div>
+    <div class="topbtns">
+      <button id="grimBtn" class="iconbtn" title="Show / hide Grimoire [G]" hidden>👁</button>
+      <button id="chatBtn" class="iconbtn" title="Messages">💬<span id="chatBadge" class="badge" hidden></span></button>
+      <button id="menuBtn" class="iconbtn" title="Menu">☰</button>
+    </div>
+  </header>
+
+  <div id="seatHint" class="hint" hidden>Tap <b>your name</b> in the circle to take your seat</div>
+
+  <main id="stage">
+    <div id="board">
+      <div class="ring"></div>
+      <div id="clock"><span>✋</span></div>
+      <div id="seats"></div>
+      <div id="center"></div>
+    </div>
+  </main>
+
+  <div id="dock">
+    <button id="refBtn" class="dockbtn" title="Character reference">📜</button>
+    <button id="nightBtn" class="dockbtn" title="Night order" hidden>🌙</button>
+    <button id="meBtn" class="dockbtn" title="My character" hidden>🎭</button>
+    <button id="notesBtn" class="dockbtn" title="My notes" hidden>📝</button>
+  </div>
+
+  <nav id="menu" hidden></nav>
+
+  <aside id="chat" class="drawer">
+    <header><b>Messages</b><button id="chatClose" class="iconbtn sm">✕</button></header>
+    <div id="chatList"></div>
+    <form id="chatForm">
+      <select id="chatTo"></select>
+      <div class="row"><input id="chatText" maxlength="500" placeholder="Write a message…" autocomplete="off"><button class="btn gold">Send</button></div>
+      <p id="chatHint" class="muted small"></p>
+    </form>
+  </aside>
+
+  <div id="nightOverlay" hidden></div>
+</section>
+
+<div id="modal" hidden><div class="mbox"><button class="mclose" id="modalClose">✕</button><div id="mbody"></div></div></div>
+<div id="toasts"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,47 +1,67 @@
-# BOTC Digital Storyteller
+# Town Square – Blood on the Clocktower companion (GitHub Pages + Firebase)
 
-A Firebase-backed, GitHub Pages-ready social deduction game for one Game Master and 6-15 office players. It is an original implementation inspired by live Storyteller-led deduction games. Do not copy official Blood on the Clocktower art, text, role scripts, or branding into this project.
+A live circular Grimoire and Town Square for running **Trouble Brewing** with office colleagues, either in the same room or remotely.
+The layout follows the style of clocktower.online (bra1n/townsquare), but this is an independent implementation: no code, artwork or icons were copied from that project.
 
 ## Features
-- Google sign-in for the Game Master; anonymous sign-in for players
-- Six-character game code and reusable 4-digit player PIN
-- GM setup, add/remove players, automatic role distribution and role assignment
-- Private player identity and ability screen
-- Live town square showing alive/dead status, phase, day and announcements
-- GM-controlled day/night cycle, nominations, votes, death and resurrection
-- Night queue, private information messages and action submissions
-- Player notes saved privately to their own account record
-- Full GM event log, manual win declaration and game reset
-- Firestore security rules based on owner UID and player UID
+- Circular Town Square with parchment character tokens, name plates, shrouds for dead players and ghost-vote markers
+- **Fixed seating:** the Storyteller enters names in sitting order and players tap their own name to sit. The order is saved in Firebase and never changes unless the Storyteller moves a seat.
+- One device per seat. A seat cannot be claimed twice.
+- Storyteller Grimoire with real character, “shown as” character (Drunk), reminder tokens, Demon bluffs and a red herring. Press **G** to hide it before screen-sharing.
+- Random Trouble Brewing deal for 5–15 players, including Baron adjustment, Drunk and red herring
+- Send characters, private night information and evil-team information to each player's phone
+- First-night and other-night order with **Wake** buttons. Woken players get a private action screen and everyone else sees a night sky.
+- **Public voting:** players raise hands on their phones, and a clock hand sweeps around the circle, locking votes visibly. Dead players use their ghost vote automatically.
+- **Storyteller-controlled messaging:**
+  - Public chat: everyone, selected players only, or off
+  - Private chat: only Storyteller-approved pairs, or quick “neighbours” and “everyone” presets
+  - Storyteller sees all messages and can message everyone or any player privately
+- Private notes for each player, a character reference sheet and four-digit `#8565` join links
 
-## Firebase setup (about 15 minutes)
-1. Create a Firebase project and add a Web App.
-2. In Authentication > Sign-in method, enable **Google** and **Anonymous**.
-3. Create a Firestore database.
-4. Copy `firebase-config.example.js` to `firebase-config.js` and paste your Firebase web configuration.
-5. Replace Firestore Rules with `firestore.rules` and publish.
-6. In Authentication > Settings > Authorized domains, add your GitHub Pages domain, such as `lokesh.github.io`.
+## Files
+| File | Purpose |
+|---|---|
+| index.html | Page layout |
+| styles.css | Visual design |
+| app.js | Game logic and Firebase |
+| roles.js | Trouble Brewing characters, counts and night order |
+| firebase-config.js | Your Firebase project (botc-517ec) |
+| firestore.rules | Security rules. Paste these into the Firebase console. |
+| assets/background.jpg | Town-square background |
+| .nojekyll | Lets GitHub Pages serve files as-is |
+
+## Firebase setup (one time)
+1. **Authentication → Sign-in method:** enable **Google** and **Anonymous**.
+2. **Authentication → Settings → Authorized domains:** add `YOUR-GITHUB-NAME.github.io`.
+3. **Firestore Database → Rules:** delete everything, paste the full `firestore.rules`, then click **Publish**.
 
 ## GitHub Pages
-1. Create a public or private repository and upload all files from this folder. Do not upload service-account keys; this project does not need one.
-2. Ensure the real `firebase-config.js` is included. Firebase web config is not a server secret; security comes from Authentication and Firestore Rules.
-3. Repository Settings > Pages > Deploy from branch > `main` / root.
-4. Open the Pages URL, choose Game Master, sign in, and create a game.
+1. Delete the old game files from the repository.
+2. Upload all files in this folder, including the `assets` folder, to the repository root.
+3. Go to **Settings → Pages → Deploy from a branch → main / (root)**.
+4. Open `https://YOUR-GITHUB-NAME.github.io/REPO-NAME/` and press **Ctrl + F5**.
 
-## First session recommendation
-Use 8-10 players plus one GM. Begin with: Analyst, Receptionist, Investigator, Medic, Watchman, Intern, Saboteur, Director. Keep the first game to roughly 75-100 minutes.
+## How to run a game
+1. **Storyteller:** Host as Storyteller, then Create new session. Enter names clockwise in sitting order.
+2. Open **☰ → Copy join link** and share it on Teams or WhatsApp.
+3. **Players:** open the link, then tap their own name in the circle.
+4. **Storyteller:** ☰ → Deal random characters, check the Grimoire, then ☰ → Send characters.
+5. Start the night. Use 🌙 Night order to wake players one by one and send their information with **Info**.
+6. Start the day. Use ⚖ Nomination, then players raise hands. Click **Start vote** and the clock counts them publicly. Click **Execute** if needed.
+7. Use ☰ → Messaging controls to decide who may chat publicly and privately.
 
-## Important operational note
-The GM remains the referee. The app records choices and information but does not automatically resolve every role interaction. This is intentional: misinformation, protection, poisoning, conversion and special rulings require GM judgment.
+**Testing tip:** use a normal window for the Storyteller and an **Incognito/InPrivate** window or a phone for each test player. A browser signed in as Storyteller always opens the Storyteller view.
 
-## Revised BOTC mode
-This build uses the original Trouble Brewing character names and official player-count role distributions. It intentionally does not reproduce copyrighted almanac/character ability text; use your legally obtained official character sheets and Storyteller reference for exact abilities and rulings.
+## Troubleshooting
+| Message | Fix |
+|---|---|
+| auth/unauthorized-domain | Add your github.io domain to Authorized domains. |
+| Permission denied | Publish the new firestore.rules. Old rules from earlier versions will not work. |
+| Enable Google and Anonymous sign-in | Turn both on in Authentication → Sign-in method. |
+| Old screen still showing | Press Ctrl + F5 and wait 1–2 minutes after uploading for GitHub Pages to redeploy. |
 
-### Public voting
-Nominations and vote totals are public to all connected players. The design supports tracking a dead player's remaining ghost vote; the Storyteller remains responsible for confirming valid votes and executions.
-
-### Remote / hybrid play
-The application is designed for players using separate phones or browsers, so players do not have to be physically together. Use Teams, Zoom, Google Meet, or another voice/video channel for public town discussion. During night, private prompts/actions and Storyteller information use the Firebase app.
-
-### Storyteller control
-The web app is a companion, not an automated rules engine. The Storyteller controls private information, poisoning/drunkenness, role display versus actual role, deaths, nominations, executions, special interactions, and final outcomes.
+## Credits
+- Blood on the Clocktower is a trademark of Steven Medway and The Pandemonium Institute. This is an unofficial fan-made tool and is not affiliated with them.
+- Character ability lines are short paraphrases. Use the official character sheet for exact wording.
+- Layout inspired by the open-source Town Square project (bra1n/townsquare, GPL-3.0). No source code or assets from it are included.
+- Visual in this file was generated with Microsoft Copilot (assets/background.jpg).
