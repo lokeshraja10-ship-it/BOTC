@@ -1,94 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
-
-    function authed() { return request.auth != null; }
-    function game(code) { return get(/databases/$(database)/documents/games/$(code)).data; }
-    function isOwner(code) { return authed() && game(code).ownerUid == request.auth.uid; }
-    function claimUid(code, seat) {
-      return get(/databases/$(database)/documents/games/$(code)/seatClaims/$(seat)).data.uid;
-    }
-    function validText() {
-      return request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 500;
-    }
-    function publicOk(code) {
-      let c = game(code).chat;
-      return request.resource.data.kind == 'public'
-        && (c.publicMode == 'all'
-            || (c.publicMode == 'selected' && request.resource.data.fromSeat in c.publicSeats));
-    }
-    function privateOk(code) {
-      let c = game(code).chat;
-      let a = request.resource.data.fromSeat;
-      let b = request.resource.data.toSeat;
-      return request.resource.data.kind == 'private'
-        && b is string
-        && ((a + '|' + b) in c.pairs || (b + '|' + a) in c.pairs)
-        && claimUid(code, b) == request.resource.data.toUid;
-    }
-
-    match /games/{code} {
-      // Anyone signed in who knows the 4-digit code can open the public game state.
-      allow get: if authed();
-      // Storytellers can list only their own sessions.
-      allow list: if authed() && resource.data.ownerUid == request.auth.uid;
-      allow create: if authed() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if authed() && resource.data.ownerUid == request.auth.uid;
-
-      // Storyteller-only Grimoire (real characters, reminders, bluffs).
-      match /gm/{docId} {
-        allow read, write: if isOwner(code);
-      }
-
-      // One device per seat. A claim can only be created if the seat is free.
-      match /seatClaims/{seat} {
-        allow read: if authed();
-        allow create: if authed() && request.resource.data.uid == request.auth.uid;
-        allow update: if isOwner(code);
-        allow delete: if isOwner(code) || (authed() && resource.data.uid == request.auth.uid);
-      }
-
-      // Each player's character and Storyteller information. Only that player + Storyteller.
-      match /private/{uid} {
-        allow read: if isOwner(code) || (authed() && request.auth.uid == uid);
-        allow write: if isOwner(code);
-      }
-
-      // Personal notes: only the player.
-      match /notes/{uid} {
-        allow read, write: if authed() && request.auth.uid == uid;
-      }
-
-      // Night choices: player writes own, Storyteller reads all.
-      match /actions/{uid} {
-        allow read: if isOwner(code) || (authed() && request.auth.uid == uid);
-        allow create, update: if authed() && request.auth.uid == uid;
-        allow delete: if isOwner(code);
-      }
-
-      // Votes are public (raised hands are visible to everyone).
-      match /votes/{uid} {
-        allow read: if authed();
-        allow create, update: if authed() && request.auth.uid == uid;
-        allow delete: if isOwner(code) || (authed() && request.auth.uid == uid);
-      }
-
-      // Chat: public messages for all; private only for sender, recipient and Storyteller.
-      match /chat/{msgId} {
-        allow read: if isOwner(code)
-          || (authed() && (resource.data.kind == 'public'
-                           || resource.data.fromUid == request.auth.uid
-                           || resource.data.toUid == request.auth.uid));
-        allow create: if (isOwner(code) && request.resource.data.fromUid == request.auth.uid && validText())
-          || (authed()
-              && request.resource.data.fromUid == request.auth.uid
-              && validText()
-              && claimUid(code, request.resource.data.fromSeat) == request.auth.uid
-              && (publicOk(code) || privateOk(code)));
-        allow update, delete: if isOwner(code);
-      }
-    }
+ match /databases/{database}/documents {
+  function auth(){ return request.auth != null; }
+  function game(g){ return get(/databases/$(database)/documents/games/$(g)).data; }
+  function owner(g){ return auth() && game(g).ownerUid == request.auth.uid; }
+  match /games/{g} {
+   allow get: if auth();
+   allow list: if auth() && resource.data.ownerUid == request.auth.uid;
+   allow create: if auth() && request.resource.data.ownerUid == request.auth.uid;
+   allow update,delete: if owner(g);
+   match /players/{pid} {
+    allow read: if auth();
+    allow create,delete: if owner(g);
+    allow update: if owner(g) || (auth() && resource.data.uid == null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid','lastSeen']) && request.resource.data.uid == request.auth.uid);
+   }
+   match /secrets/{pid} {
+    allow read: if owner(g) || (auth() && get(/databases/$(database)/documents/games/$(g)/players/$(pid)).data.uid == request.auth.uid);
+    allow create,delete: if owner(g);
+    allow update: if owner(g) || (auth() && get(/databases/$(database)/documents/games/$(g)/players/$(pid)).data.uid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes','vote','action']));
+   }
+   match /logs/{id} { allow read,write: if owner(g); }
+   match /messages/{id} { allow read: if owner(g)||(auth()&&resource.data.toUid==request.auth.uid); allow write: if owner(g); }
+   match /chat/{id} {
+    allow read: if owner(g) || auth();
+    allow create: if owner(g) || (auth() && request.resource.data.fromUid == request.auth.uid && request.resource.data.text is string && request.resource.data.text.size()>0 && request.resource.data.text.size()<=500);
+    allow update,delete: if owner(g);
+   }
   }
+ }
 }
