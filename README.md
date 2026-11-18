@@ -76,3 +76,10 @@ The layout follows the style of clocktower.online (bra1n/townsquare), but this i
 - Travellers are excluded from the normal Townsfolk/Outsider/Minion/Demon setup count and are not included in random deals or Demon bluffs.
 - Thief and Bureaucrat appear in the night order. Daytime Traveller effects remain Storyteller-resolved using reminder tokens.
 - Publish the included `firestore.rules`; earlier rules do not permit the secure join-key flow.
+
+## Latest additions: private Storyteller channel + voting countdown
+- Every player now has a permanent purple **🔒** button in the lower-left dock. It opens chat with **Storyteller (private)** even if ordinary player-to-player messaging is disabled.
+- Player → Storyteller messages are stored as `kind: storyteller`; only the sender and Storyteller account can read them under the included Firestore rules.
+- Storyteller replies use the existing GM private-message capability in the chat drawer.
+- Pressing **Start vote** now triggers a synchronized **5 → 4 → 3 → 2 → 1** full-screen countdown on every connected screen. The vote clock does not begin until the countdown finishes.
+- Publish the included `firestore.rules`; prior rules will reject the new private Storyteller message type.

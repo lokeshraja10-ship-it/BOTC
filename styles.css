@@ -226,3 +226,9 @@ body.day #bg{filter:brightness(1.12) saturate(1.1)}
 
 .token.traveller{box-shadow:0 0 0 3px #28123f,0 0 0 6px #9d63d8,0 8px 18px rgba(0,0,0,.7),inset 0 0 calc(var(--tok)*.15) rgba(90,60,20,.55)}
 .align.traveller{color:#caa2f2}.teamhead.traveller{color:#caa2f2}.refrow .mini.traveller{box-shadow:0 0 0 3px #9d63d8}
+
+.storyteller-btn{border-color:#b678ff!important;box-shadow:0 0 18px rgba(182,120,255,.35)!important}
+.vote-countdown{position:fixed;inset:0;z-index:90;background:rgba(3,2,8,.88);display:grid;place-items:center;backdrop-filter:blur(7px)}
+.vote-countdown-card{text-align:center;width:min(420px,90vw);padding:28px;border:1px solid var(--gold);border-radius:22px;background:radial-gradient(circle at 50% 20%,#39243f,#110b15 70%);box-shadow:0 0 70px rgba(227,176,75,.2);font-family:var(--serif)}
+.vote-countdown-number{font-size:clamp(8rem,36vw,15rem);font-weight:900;line-height:.95;color:var(--gold2);text-shadow:0 0 40px rgba(246,217,138,.45);animation:countPulse .95s ease-in-out infinite}
+@keyframes countPulse{50%{transform:scale(1.08);color:#fff6d7}}

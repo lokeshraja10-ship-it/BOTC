@@ -148,7 +148,7 @@ function enterGame(code, mode) {
   history.replaceState(null, "", "#" + code);
   $("#landing").hidden = true; $("#game").hidden = false;
   $("#grimBtn").hidden = mode !== "gm"; $("#nightBtn").hidden = mode !== "gm";
-  $("#meBtn").hidden = mode === "gm"; $("#notesBtn").hidden = mode === "gm";
+  $("#meBtn").hidden = mode === "gm"; $("#notesBtn").hidden = mode === "gm"; $("#storyBtn").hidden = mode === "gm";
   const U = S.unsubs, me = uid();
 
   U.push(onSnapshot(gRef(), s => {
@@ -190,7 +190,7 @@ function doRender() {
   $("#status").innerHTML = `Session <b>${esc(g.code)}</b> · ${esc(g.edition || "Trouble Brewing")} · ${ph}`;
   $("#grimBtn").style.opacity = S.ui.grim ? 1 : 0.5;
   $("#seatHint").hidden = true;
-  renderBoard(); renderNightOverlay();
+  renderBoard(); renderNightOverlay(); renderVoteCountdown();
   if (S.ui.modalLive && !$("#modal").hidden) S.ui.modalLive();
 }
 
@@ -297,7 +297,7 @@ function renderCenter() {
   }
   $("#center").innerHTML = h;
   const on = (id, f) => { const e = $("#" + id); if (e) e.onclick = safe(f); };
-  on("handBtn", toggleHand); on("runVote", runVote); on("clearNom", () => updateDoc(gRef(), { nomination: null }));
+  on("handBtn", toggleHand); on("runVote", runVote); on("clearNom", () => updateDoc(gRef(), { nomination: null, voteCountdown:null }));
   on("execNom", () => killSeat(nom.nominee, true)); on("goNight", startNight); on("goDay", startDay); on("nomBtn", () => nominateModal());
 }
 
@@ -482,12 +482,12 @@ function bluffsModal() {
 /* ---------------- GM: day / night / voting ---------------- */
 async function startNight() {
   const g = S.game;
-  await updateDoc(gRef(), { phase: "night", night: (g.night || 0) + 1, awake: null, nomination: null, announcement: "Night has fallen." });
+  await updateDoc(gRef(), { voteCountdown:null, phase: "night", night: (g.night || 0) + 1, awake: null, nomination: null, announcement: "Night has fallen." });
   nightOrderModal();
 }
 async function startDay() {
   const g = S.game;
-  await updateDoc(gRef(), { phase: "day", day: (g.day || 0) + 1, awake: null, nomination: null, announcement: `Dawn of day ${(g.day || 0) + 1}.` });
+  await updateDoc(gRef(), { voteCountdown:null, phase: "day", day: (g.day || 0) + 1, awake: null, nomination: null, announcement: `Dawn of day ${(g.day || 0) + 1}.` });
 }
 
 function nominateModal(nominee = null) {
@@ -509,6 +509,8 @@ function nominateModal(nominee = null) {
 
 async function runVote() {
   const nom = S.game.nomination; if (!nom || S.voteTimer) return;
+  for(let n=5;n>=1;n--){await updateDoc(gRef(),{voteCountdown:{active:true,n,nominationKey:nom.key,at:Date.now()}});await new Promise(r=>setTimeout(r,1000));}
+  await updateDoc(gRef(),{voteCountdown:null});
   const list = seats(), n = list.length, start = list.findIndex(s => s.id === nom.nominee);
   const order = []; for (let k = 1; k <= n; k++) order.push(list[(start + k) % n].id);
   let votes = 0, step = 0; const locked = {}, ghostUsed = [];
@@ -644,6 +646,14 @@ function renderNightOverlay() {
   const n = $("#ovNotes", ov); if (n) n.onclick = notesModal;
 }
 
+function openStorytellerChat(){
+  if(isGM())return; openChat(); renderChatOptions(); const sel=$("#chatTo"); if([...sel.options].some(o=>o.value==="storyteller"))sel.value="storyteller"; $("#chatText").focus();
+}
+function renderVoteCountdown(){
+  const el=$("#voteCountdown"),c=S.game?.voteCountdown;
+  if(!c?.active){el.hidden=true;el.innerHTML="";return;}
+  el.hidden=false;el.innerHTML=`<div class="vote-countdown-card"><div class="small">VOTING STARTS IN</div><div class="vote-countdown-number">${esc(c.n)}</div><div>✋ Get ready to vote</div></div>`;
+}
 /* ---------------- chat ---------------- */
 function pairKeyAllowed(a, b) { const p = S.game?.chat?.pairs || []; return p.includes(a + "|" + b) || p.includes(b + "|" + a); }
 function canPublic(seatId) { const c = S.game?.chat || {}; return c.publicMode === "all" || (c.publicMode === "selected" && (c.publicSeats || []).includes(seatId)); }
@@ -662,7 +672,7 @@ function renderBadge() {
 function renderChat() {
   const list = Object.values(S.chat).sort((a, b) => tsMs(a.at) - tsMs(b.at)), me = uid();
   $("#chatList").innerHTML = list.length ? list.map(m => {
-    const priv = m.kind === "private", st = m.fromSeat === "ST";
+    const priv = m.kind === "private" || m.kind === "storyteller", st = m.fromSeat === "ST";
     const time = new Date(tsMs(m.at)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     return `<div class="msg ${priv ? "priv" : ""} ${st ? "st" : ""} ${m.fromUid === me ? "mine" : ""}">
       <div class="who"><b>${esc(m.fromName)}</b>${priv ? ` 🔒 → ${esc(m.toName)}` : " · everyone"} · ${time}</div>${esc(m.text)}</div>`;
@@ -679,6 +689,7 @@ function renderChatOptions() {
     opts.push(["public", "📢 Everyone (as Storyteller)"]);
     seats().filter(s => S.claims[s.id]).forEach(s => opts.push(["seat:" + s.id, "🔒 " + s.name]));
   } else if (me) {
+    opts.push(["storyteller", "🔒 Storyteller (private)"]);
     if (canPublic(me)) opts.push(["public", "📢 Everyone"]);
     seats().filter(s => s.id !== me && S.claims[s.id] && pairKeyAllowed(me, s.id)).forEach(s => opts.push(["seat:" + s.id, "🔒 " + s.name]));
   }
@@ -703,6 +714,7 @@ $("#chatForm").addEventListener("submit", safe(async e => {
   if (isGM()) Object.assign(base, { fromSeat: "ST", fromName: "Storyteller" });
   else Object.assign(base, { fromSeat: me, fromName: seatById(me)?.name || "?" });
   if (to === "public") Object.assign(base, { kind: "public", toUid: null, toSeat: null, toName: null });
+  else if(to === "storyteller") Object.assign(base,{kind:"storyteller",toUid:S.game.ownerUid,toSeat:"ST",toName:"Storyteller"});
   else { const sid = to.slice(5); Object.assign(base, { kind: "private", toSeat: sid, toUid: S.claims[sid], toName: seatById(sid)?.name || "?" }); }
   await addDoc(cref("chat"), base);
   $("#chatText").value = "";
@@ -817,5 +829,6 @@ $("#refBtn").onclick = referenceModal;
 $("#nightBtn").onclick = nightOrderModal;
 $("#meBtn").onclick = myCharacterModal;
 $("#notesBtn").onclick = notesModal;
+$("#storyBtn").onclick = openStorytellerChat;
 
 boot();
