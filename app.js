@@ -94,8 +94,9 @@ $("#joinBtn").onclick = safe(async () => {
   const key=await sha256(`${code}|${playerName.toLowerCase()}|${pin}`);
   const keySnap=await getDoc(doc(db,"games",code,"joinKeys",key)); if(!keySnap.exists()) return toast("Player name or PIN is incorrect.","err");
   const {seatId,name}=keySnap.data(), claimRef=doc(db,"games",code,"seatClaims",seatId), claimSnap=await getDoc(claimRef);
-  if(claimSnap.exists() && claimSnap.data().uid!==uid()) return toast(`${name} is already linked to another device. Ask the Storyteller to reset the device link.`,"err");
-  if(!claimSnap.exists()) await setDoc(claimRef,{uid:uid(),joinKey:key,at:serverTimestamp()});
+  // Correct session + assigned name + PIN can move this assigned seat to the current device.
+  if(claimSnap.exists() && claimSnap.data().uid!==uid()) await updateDoc(claimRef,{uid:uid(),joinKey:key,at:serverTimestamp()});
+  else if(!claimSnap.exists()) await setDoc(claimRef,{uid:uid(),joinKey:key,at:serverTimestamp()});
   localStorage.setItem("ts_assigned_"+code,seatId); enterGame(code,gameSnap.data().ownerUid===uid()?"gm":"player");
 });
 
