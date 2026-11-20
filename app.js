@@ -129,7 +129,6 @@ async function createGame() {
   await setDoc(doc(db, "games", code), {
     code, ownerUid: uid(), createdAt: serverTimestamp(), edition: "Trouble Brewing",
     phase: "setup", day: 0, night: 0, seats: [], nomination: null, awake: null,
-    roleRevealV2: true,
     announcement: "Welcome to the Town Square.",
     chat: { publicMode: "all", publicSeats: [], pairs: [] }
   });
@@ -202,7 +201,7 @@ function seatView(s) {
     const r = S.grim.roles?.[s.id] || {};
     return { role: ROLE_MAP[r.role] || null, shown: r.shown && r.shown !== r.role ? ROLE_MAP[r.shown] : null, rem: r.reminders || [] };
   }
-  // Player roles are never shown on the board; only the GM retains a persistent view.
+  if (!isGM() && s.id === me && S.priv?.role) return { role: ROLE_MAP[S.priv.role] || null, shown: null, rem: [] };
   return { role: null, shown: null, rem: [] };
 }
 
@@ -450,8 +449,7 @@ async function sendRoles() {
     const r = S.grim.roles?.[s.id], u = S.claims[s.id];
     if (!r?.role) { missing.push(s.name + " (no character)"); continue; }
     if (!u) { missing.push(s.name + " (no device)"); continue; }
-    const oneTimeReveal = S.game?.roleRevealV2 === true;
-    b.set(dref("private", u), {role:r.shown||r.role,alignment:r.alignment||(ROLE_MAP[r.role]?.team==="traveller"?"good":isEvil(ROLE_MAP[r.role]?.team)?"evil":"good"),seat:s.id,name:s.name,dealtAt:Date.now(),roleSeen:!oneTimeReveal}, { merge: true }); sent++;
+    b.set(dref("private", u), {role:r.shown||r.role,alignment:r.alignment||(ROLE_MAP[r.role]?.team==="traveller"?"good":isEvil(ROLE_MAP[r.role]?.team)?"evil":"good"),seat:s.id,name:s.name,dealtAt:Date.now()}, { merge: true }); sent++;
   }
   await b.commit();
   toast(`Characters sent to ${sent} player(s).${missing.length ? " Not sent: " + missing.join(", ") : ""}`, missing.length ? "" : "ok");
@@ -585,33 +583,27 @@ function infoPrompt(seatId) {
 /* ---------------- player: private ---------------- */
 function onPrivate(prev) {
   if (!S.priv) return;
-  // Missing roleSeen means an older session, so it is treated as already viewed.
-  if (S.priv.role && S.priv.roleSeen === false && (!prev || prev.role !== S.priv.role || prev.dealtAt !== S.priv.dealtAt)) setTimeout(() => safe(myCharacterModal)(), 300);
+  if (S.priv.role && (!prev || prev.role !== S.priv.role || prev.dealtAt !== S.priv.dealtAt)) setTimeout(myCharacterModal, 300);
   const a = (prev?.inbox || []).length, b = (S.priv.inbox || []).length;
-  if (prev && b > a) { toast("📨 New information from the Storyteller"); if (S.game?.phase !== "night") safe(myCharacterModal)(); }
+  if (prev && b > a) { toast("📨 New information from the Storyteller"); if (S.game?.phase !== "night") myCharacterModal(); }
 }
-async function myCharacterModal() {
+
+function myCharacterModal() {
+  const r = ROLE_MAP[S.priv?.role];
   const inbox = [...(S.priv?.inbox || [])].reverse();
-  const canReveal = !!S.priv?.role && S.priv?.roleSeen === false;
-  let revealHtml;
-  if (canReveal) {
-    // Consume first, display second. Refresh or another device cannot reopen the role.
-    await updateDoc(dref("private", uid()), { roleSeen: true, roleSeenAt: serverTimestamp() });
-    const r = ROLE_MAP[S.priv.role];
-    revealHtml = r ? `<p class="muted">You are</p><div class="bigtok ${teamClass(r)}"><span class="ico">${r.icon}</span><span class="rname">${esc(r.name)}</span></div>
-      <div class="align ${teamClass(r)}">${r.team==="traveller"?(S.priv?.alignment||"good").toUpperCase():isEvil(r.team)?"EVIL":"GOOD"} · ${TEAM_LABEL[r.team].replace(/s$/,'')}</div>
-      <p style="font-family:var(--body);font-size:1.15rem">${esc(r.ability)}</p>
-      <p class="small muted">This is your only character reveal. It will not be shown again.</p>` : "";
-  } else if (S.priv?.role) {
-    revealHtml = `<h2>Character already viewed</h2><p class="muted">For screen privacy, your character cannot be displayed again. Ask the Storyteller privately if assistance is required.</p>`;
-  } else {
-    revealHtml = `<h2>Waiting for your character…</h2><p class="muted">The Storyteller has not dealt characters yet.</p>`;
-  }
-  openModal(`<div class="reveal">${revealHtml}</div>
+  openModal(`<div class="reveal">
+    ${r ? `<p class="muted">You are</p><div class="bigtok ${teamClass(r)}"><span class="ico">${r.icon}</span><span class="rname">${esc(r.name)}</span></div>
+      <div class="align ${teamClass(r)}">${r.team==="traveller"?(S.priv?.alignment||"good").toUpperCase():isEvil(r.team)?"EVIL":"GOOD"} · ${TEAM_LABEL[r.team].replace(/s$/,"")}</div>
+      <p style="font-family:var(--body);font-size:1.15rem">${esc(r.ability)}</p>`
+      : `<h2>Waiting for your character…</h2><p class="muted">The Storyteller has not dealt characters yet.</p>`}
+    <p class="small muted">Keep this screen private.</p></div>
     <div class="sect inbox"><h3>📨 From the Storyteller</h3>
       ${inbox.length ? inbox.map(m => `<div class="msg st"><div class="who">${m.night ? "Night " + m.night : m.day ? "Day " + m.day : "Setup"}</div>${esc(m.text)}</div>`).join("") : `<p class="muted small">Nothing yet.</p>`}</div>
-    <p class="small muted">Your seat is assigned by the Storyteller.</p>`);
+    <p class="small muted">Your seat is assigned by the Storyteller.</p>`, root => {
+    
+  });
 }
+
 function notesModal() {
   openModal(`<h2>📝 My notes</h2><p class="muted small">Only you can read these.</p>
     <textarea id="notesTxt" style="min-height:260px">${esc(S.notes)}</textarea>
@@ -634,11 +626,11 @@ function renderNightOverlay() {
     ov.innerHTML = `<div class="nightcard"><div class="moon"></div><h2>Night ${g.night}</h2>
       <p style="font-family:var(--body);font-size:1.2rem;color:#c9d3f5">Close your eyes… The Storyteller is moving through the town.</p>
       <p class="muted small">This screen will change if the Storyteller wakes you.</p>
-      <div class="btnrow" style="justify-content:center"><button class="btn ghost sm" id="ovMe">📨 My private info</button><button class="btn ghost sm" id="ovNotes">📝 Notes</button></div></div>`;
+      <div class="btnrow" style="justify-content:center"><button class="btn ghost sm" id="ovMe">🎭 My character</button><button class="btn ghost sm" id="ovNotes">📝 Notes</button></div></div>`;
   } else {
     const last = (S.priv?.inbox || []).filter(m => m.night === g.night).reverse();
     ov.innerHTML = `<div class="nightcard"><div class="moon" style="width:70px;height:70px"></div><h2>You are awake</h2>
-      <p class="muted small">Your character remains hidden after the one-time reveal.</p>
+      ${r ? `<div class="align ${teamClass(r)}">${r.icon} ${esc(r.name)}</div><p class="muted">${esc(r.ability)}</p>` : ""}
       ${last.length ? `<div class="panel">${last.map(m => `<div class="msg st">${esc(m.text)}</div>`).join("")}</div>` : ""}
       <div class="panel"><b>Your choice</b><p class="muted small">Tap players if your ability asks you to choose.</p>
         <div class="chips">${seats().filter(s => s.id !== me || r?.id === "imp").map(s => `<button class="chip" data-t="${esc(s.name)}">${esc(s.name)}${s.dead ? " ☠" : ""}</button>`).join("")}</div>
@@ -651,7 +643,7 @@ function renderNightOverlay() {
       toast("Sent to the Storyteller. Close your eyes.", "ok");
     });
   }
-  const m = $("#ovMe", ov); if (m) m.onclick = () => safe(myCharacterModal)();
+  const m = $("#ovMe", ov); if (m) m.onclick = myCharacterModal;
   const n = $("#ovNotes", ov); if (n) n.onclick = notesModal;
 }
 
@@ -794,7 +786,7 @@ function menu() {
     it("🗑", "Delete session", safe(deleteGame));
   } else {
     items.push("Player");
-    it("📨", "My private info", () => safe(myCharacterModal)());
+    it("🎭", "My character & info", myCharacterModal);
     it("📝", "My notes", notesModal);
   }
   items.push("Help");
@@ -836,7 +828,7 @@ async function deleteGame() {
 /* ---------------- dock ---------------- */
 $("#refBtn").onclick = referenceModal;
 $("#nightBtn").onclick = nightOrderModal;
-$("#meBtn").onclick = () => safe(myCharacterModal)();
+$("#meBtn").onclick = myCharacterModal;
 $("#notesBtn").onclick = notesModal;
 $("#storyBtn").onclick = openStorytellerChat;
 
